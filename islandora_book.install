@@ -11,24 +11,15 @@ function islandora_book_enable() {
     drupal_set_message(t('Fedora instance is not currently available.  Installation must be verified and completed on the Islandora Configuration page.'));
   }
   else {
-    $solution_pack_info = islandora_book_required_fedora_objects();
-
-    $batch = array(
-      'title' => t('Installing Book Solutionpack objects'),
-      'file' => drupal_get_path('module', 'fedora_repository') . '/fedora_repository.module',
-      'operations' => array(),
-    );
-
+    // Get info on the required fedora objects for this solution pack
+    $solution_pack_info = islandora_book_fedora_repository_required_fedora_objects();
 
     foreach ($solution_pack_info['islandora_book']['objects'] as $object) {
-      // Add this object to the batch job queue.
       $item = new Fedora_Item($object['pid']);
       if (!$item->exists()) {
-        $batch['operations'][] = array('fedora_repository_batch_reingest_object', array($object));
+        fedora_repository_batch_reingest_object($object);
       }
     }
-    batch_set($batch);
-    batch_process();
   }
 }
 

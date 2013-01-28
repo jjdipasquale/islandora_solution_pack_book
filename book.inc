@@ -162,7 +162,6 @@ XML;
     }
 
     $output .= fedora_repository_object_details_XSLT($item);
-
     //$headers = array($item->objectProfile->objLabel, "");
     $headers = array(array('data'=>$item->objectProfile->objLabel,'colspan'=>2));
     $rows = array(array($img, $output));

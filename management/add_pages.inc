@@ -6,7 +6,7 @@ function book_add_pages(&$form_state, $pid) {
   drupal_add_css($path . '/css/islandora_book.css');
   $list = array(
     l(t("Append or Insert Pages"), "islandora/book/upload/$pid"),
-    l(t("Create Digital Page"), "islandora/book/borndigital/$pid")
+   // l(t("Create Digital Page"), "islandora/book/borndigital/$pid")
   );
   $form['link'] = array(
     '#type' => 'item',
@@ -64,7 +64,7 @@ function book_add_pages_form(&$form_state, $pid, $page_cmodel = 'islandora:pageC
   }
   $message = t("This sequence currently has @count pages. Additional pages will be appended at the end of the sequence by default. !break", array("@count" => $current_page_count, '!break' => '<br />'));
   $message .= t("Choose a number lower than @count to insert page(s) at a specific location in the sequence.", array("@count" => $current_page_count, '!break' => '<br />'));
-  if ($filecount > 1) {
+  if ($filecount > 0) {
     $form['intro'] = array(
       '#type' => 'item',
       '#title' => '<span id ="file_label">' . $toggle_link . "</span",
@@ -83,6 +83,7 @@ function book_add_pages_form(&$form_state, $pid, $page_cmodel = 'islandora:pageC
       '#description' => t("If checked files will be sorted alphanumerically to determine page order.")
     );
   }
+
   $form['page_add'] = array(
     '#type' => 'item',
     '#title' => $prompt,
@@ -312,7 +313,15 @@ function ibook_add_single_page_object($book_pid, $page_file, $page_num = 1, $pag
   if (variable_get('enable_fits', FALSE) == TRUE) {
     exec(variable_get('fits_path', '/usr/local/bin/fits.sh') . ' -i ' . escapeshellarg($page_file) . '', $TECHMD);
     $TECHMD = implode($TECHMD);
+    $xml = simplexml_load_string($TECHMD);
+    $xml->registerXPathNamespace('fits', 'http://hul.harvard.edu/ois/xml/ns/fits/fits_output');
+    $image_height = $xml->xpath('//fits:imageHeight');
+    $image_height = (string) $image_height[0];
+    $image_width = $xml->xpath('//fits:imageWidth');
+    $image_width = (string) $image_width[0];
     $page_item->add_datastream_from_string($TECHMD, 'TECHMD', 'TECHMD', 'text/xml', 'M');
+    $page_item->add_dsid_relationship('JPEG', 'islandora-book:height', $image_height, 'info:islandora/islandora-system:def/pageinfo#', 3);
+    $page_item->add_dsid_relationship('JPEG', 'islandora-book:width', $image_width, 'info:islandora/islandora-system:def/pageinfo#', 3);
   }
   // add original image
   if (strtolower($ext) == 'tif') {
@@ -474,7 +483,7 @@ function makePDF($book_pid, $file_list, $tmpDir) {
   $book_item = new Fedora_Item($book_pid);
   $outputFile = "${tmpDir}book.pdf";
   $tiffs = array();
-  $cmdString = 'convert -compress LZW';
+  $cmdString = 'convert -compress JPEG -density 150';
   foreach ($file_list as $tiff) {
     $cmdString .= " $tiff";
   }
@@ -568,4 +577,16 @@ function wrap_post_deletion_renumber_pages($book_pid) {
 function wrap_renumber_pages($start_page, $pid, $image_count) {
   module_load_include('inc', 'islandora_book', 'book_pack_utils');
   renumber_pages($start_page, $pid, $image_count);
+}
+
+function islandora_book_get_dimensions($pid) {
+  module_load_include('inc', 'fedora_repository', 'api/fedora_item');
+  $item = new fedora_item($pid);
+  $TECHMD = $item->get_datastream_dissemination('TECHMD');
+  $xml = simplexml_load_string($TECHMD);
+  $xml->registerXPathNamespace('fits', 'http://hul.harvard.edu/ois/xml/ns/fits/fits_output');
+  $image_height = $xml->xpath('//fits:imageHeight');
+  $image_height = (string) $image_height[0];
+  $image_width = $xml->xpath('//fits:imageWidth');
+  $image_width = (string) $image_width[0];
 }
